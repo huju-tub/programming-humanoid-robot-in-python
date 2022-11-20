@@ -23,7 +23,18 @@
 from pid import PIDAgent
 from keyframes import hello
 
-
+def bezier(time_i, t, key):
+    key_0 = key[time_i][0]
+    key_3 = key[time_i+1][0]
+    key_1 = key_0 + key[time_i][1][2]
+    key_2 = key_3 + key[time_i][2][2]
+    return (
+        (1 -t) ** 3 * key_0
+        + 3 * t * (1 - t) ** 2 * key_1
+        + 3 * t**2 * (1 - t) * key_2
+        + t**3 * key_3
+    )
+    
 class AngleInterpolationAgent(PIDAgent):
     def __init__(self, simspark_ip='localhost',
                  simspark_port=3100,
@@ -32,17 +43,45 @@ class AngleInterpolationAgent(PIDAgent):
                  sync_mode=True):
         super(AngleInterpolationAgent, self).__init__(simspark_ip, simspark_port, teamname, player_id, sync_mode)
         self.keyframes = ([], [], [])
+        self.start = None
 
     def think(self, perception):
         target_joints = self.angle_interpolation(self.keyframes, perception)
-        target_joints['RHipYawPitch'] = target_joints['LHipYawPitch'] # copy missing joint in keyframes
         self.target_joints.update(target_joints)
         return super(AngleInterpolationAgent, self).think(perception)
 
     def angle_interpolation(self, keyframes, perception):
         target_joints = {}
         # YOUR CODE HERE
+        if(self.keyframes == ([],[],[])):
+            return target_joints
+        
+        if(self.start == None):
+            self.start = perception.time
+        time_diff = perception.time - self.start
+ 
+        
+        names, times, keys = keyframes
+        n = len(names)
+        
+        for joint_i in range(n):
+            name = names[joint_i]
 
+            if not (name in self.joint_names):
+                continue
+            joint_times = times[joint_i]
+            joint_keys = keys[joint_i]
+                  
+            for time_i in range(len(joint_times) - 1):
+                joint_time_0 = joint_times[time_i]
+                joint_time_1 = joint_times[time_i + 1]
+                if (not (joint_time_0 < time_diff < joint_time_1)):
+                    continue
+
+                t = (time_diff - joint_time_0) / (joint_time_1 - joint_time_0)
+                target_joints[name] = bezier(time_i, t, joint_keys)
+                if (name == 'LHipYawPitch'):
+                    target_joints['RHipYawPitch'] = target_joints['LHipYawPitch']
         return target_joints
 
 if __name__ == '__main__':
