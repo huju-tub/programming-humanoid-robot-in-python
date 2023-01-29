@@ -10,7 +10,7 @@
 '''
 
 
-from forward_kinematics_copy_hen import ForwardKinematicsAgent
+from forward_kinematics import ForwardKinematicsAgent
 from numpy.matlib import identity
 import numpy as np
 from math import atan2
